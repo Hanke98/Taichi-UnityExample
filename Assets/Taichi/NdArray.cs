@@ -1,6 +1,7 @@
 ﻿using System.Runtime.InteropServices;
 using System;
 using Taichi.Generated;
+using UnityEngine;
 
 namespace Taichi {
     public class NdArray<T> : IDisposable where T : struct {
@@ -68,6 +69,7 @@ namespace Taichi {
             _Memory.Read(data);
         }
         public T[] ToArray() {
+            Debug.Log("Shape2Count: "+ Shape2Count(Shape));
             var rv = new T[Shape2Count(Shape)];
             CopyToArray(rv);
             return rv;
