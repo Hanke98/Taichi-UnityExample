@@ -71,7 +71,14 @@ crashlytics-build.properties
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
 
-
-
 .vscode
 .vsconfig
+
+*.meta
+.DS_Store
+log
+err
+*.so
+
+*.tcm
+apks/*

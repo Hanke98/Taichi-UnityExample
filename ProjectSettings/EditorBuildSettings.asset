@@ -5,7 +5,7 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/ImplicitFemScene.unity
     guid: d2df2acd51ec2ca45a24315bba4cf296
   - enabled: 1
