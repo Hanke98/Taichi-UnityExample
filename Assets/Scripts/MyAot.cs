@@ -1,15 +1,19 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Diagnostics;
 using Taichi;
 using UnityEngine;
 using UnityEngine.Rendering;
-
+using UnityEngine.Profiling;
+using System.Threading;
+using Debug=UnityEngine.Debug;
 
 public class MyAot : MonoBehaviour
 {
     public AotModuleAsset MyAotModule; 
     private ComputeGraph _Compute_Graph_g_init;
+    private ComputeGraph _Compute_Graph_g_assign;
 
     public NdArray<float> x;
     public float[] x_array;
@@ -17,7 +21,9 @@ public class MyAot : MonoBehaviour
     public NdArray<float> y;
     public NdArray<float> r;
     private const int dim = 2;
-    private const int N = 200;
+    private const int N = 20000;
+    private int iters = 0;
+    private long numTicks = 0;
 
     // Start is called before the first frame update
     void Start()
@@ -34,22 +40,56 @@ public class MyAot : MonoBehaviour
       var cgraphs = MyAotModule.GetAllComputeGrpahs().ToDictionary(x => x.Name);
       if (cgraphs.Count > 0) {
         _Compute_Graph_g_init = cgraphs["init"];
+        _Compute_Graph_g_assign = cgraphs["assign"];
       }
-      if (_Compute_Graph_g_init != null) {
-        _Compute_Graph_g_init.LaunchAsync(new Dictionary<string, object> {
-            { "x", x },
-            { "y", y },
-            { "r", r },
-        });
-      }
+      // if (_Compute_Graph_g_init != null) {
+      //   _Compute_Graph_g_init.LaunchAsync(new Dictionary<string, object> {
+      //       { "x", x },
+      //       { "y", y },
+      //       { "r", r },
+      //   });
+      // }
+      // if (_Compute_Graph_g_assign != null) {
+      //   _Compute_Graph_g_assign.LaunchAsync(new Dictionary<string, object>());
+      // }
       // Runtime.Submit();
     }
 
     // Update is called once per frame
     void Update()
     {
+        iters += 1;
+        if(iters > 150) return;
+        if (iters < 100) return;
+
+        Stopwatch sw = new Stopwatch();
+        sw.Start();
+        _Compute_Graph_g_assign.LaunchAsync(new Dictionary<string, object>());
+        Runtime.Submit();
+        // Thread.Sleep(300);
+        // _Compute_Graph_g_init.LaunchAsync(new Dictionary<string, object> {
+        //     { "x", x },
+        //     { "y", y },
+        //     { "r", r },
+        // });
+        // Runtime.Submit();
+        // Thread.Sleep(300);
+        sw.Stop();
+        // UnityEngine.Debug.Log(string.Format("Total {0} ms", sw.ElapsedMilliseconds));
+
+        // Thread.Sleep(1000);
         x.CopyToArray(x_array);
         y.CopyToArray(y_array);
-        this.transform.position = new Vector3(x_array[0], y_array[0], 0.0f);
+        long nanosecPerTick = (1000L*1000L*1000L) / Stopwatch.Frequency;
+        numTicks += sw.ElapsedTicks;
+        var nanosec = (numTicks * nanosecPerTick) / (iters-100);
+        var musec = nanosec / 1000;
+        Debug.Log(string.Format("Total {0} mus", musec));
+        // for(int i = 0; i < N; ++i) {
+        //   if (y_array[i] > -0.49f) {
+        //     UnityEngine.Debug.Log(string.Format("{0} th y_array is not -0.5", i));
+        //   }
+        // }
+        this.transform.position = new Vector3(x_array[N-1], y_array[N-1], 0.0f);
     }
 }
