@@ -8,7 +8,10 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/Scenes/ImplicitFemScene.unity
     guid: d2df2acd51ec2ca45a24315bba4cf296
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/FractalScene.unity
     guid: 9fc0d4010bbf28b4594072e72b8655ab
+  - enabled: 1
+    path: Assets/Scenes/mpm88.unity
+    guid: 69769634ecbd8d34d8fe8eec7f78a1d9
   m_configObjects: {}
