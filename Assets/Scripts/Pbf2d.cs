@@ -1,15 +1,19 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Taichi;
 using UnityEngine;
 using System.Threading;
 
+using Debug = UnityEngine.Debug;
+
 public class Pbf2d : MonoBehaviour
 {
+    
     const int WIDTH = 800;
-    const int HEIGHT = 400;
-    private const float screen_to_world_ratio = 10.0f;
-    private const int num_particles = 1200;
+    const int HEIGHT = 800;
+    private const float screen_to_world_ratio = 10.0f / 80.0f;
+    private const int num_particles = 6000;
 
     public AotModuleAsset Module;
     private ComputeGraph _ComputeGraph_init;
@@ -22,6 +26,9 @@ public class Pbf2d : MonoBehaviour
     private Texture2D _Texture;
     private Color[] _Pbf2dDataColor;
 
+    private long numTicks = 0;
+    private int frame = 0;
+    
     // Start is called before the first frame update
     void Start()
     {
@@ -45,7 +52,6 @@ public class Pbf2d : MonoBehaviour
         {
             _ComputeGraph_init.LaunchAsync(new Dictionary<string, object>
             {
-                { "positions", positions },
                 { "board_states", board_states }
             });
         }
@@ -82,20 +88,31 @@ public class Pbf2d : MonoBehaviour
         
         _Texture.Apply();
 
-        float time_delta = Time.deltaTime;
+        // return;
+        // float time_delta = Time.deltaTime;
+        float time_delta = 1.0f/120.0f;
+        var sw = new Stopwatch();
+        sw.Start();
         if (_ComputeGraph_update != null)
         {
-          for (int i = 0; i < 2; ++i)
             _ComputeGraph_update.LaunchAsync(new Dictionary<string, object>
             {
-                { "positions", positions },
-                { "board_states", board_states },
-                { "time_delta", time_delta }
+                { "positions_nda", positions},
+                { "board_states", board_states},
+                { "time_delta", time_delta}
             });
         }
-
+        sw.Stop();
         Runtime.Submit();
+        frame += 1;
+        if (frame < 20) return; 
+        if (frame > 100) return; 
         var fps = 1.0f / Time.deltaTime;
+        long nanosecPerTick = (1000L*1000L*1000L) / Stopwatch.Frequency;
+        numTicks += sw.ElapsedTicks;
+        var nanosec = (numTicks * nanosecPerTick) / (frame-20);
+        var musec = nanosec / 1000;
+        Debug.Log(string.Format("Total {0} mus", musec));
         Debug.Log("fps: " + fps.ToString());
     }
 }
