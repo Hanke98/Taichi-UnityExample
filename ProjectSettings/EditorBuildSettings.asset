@@ -14,4 +14,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/mpm88.unity
     guid: 69769634ecbd8d34d8fe8eec7f78a1d9
+  - enabled: 0
+    path: Assets/Scenes/QuantTest.unity
+    guid: 45963bed5e31d4a84a4236cf6b141d48
   m_configObjects: {}

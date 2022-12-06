@@ -30,10 +30,12 @@ public class mpm88 : MonoBehaviour
     private Color ParticleColor=new Color(1.0f,0.0f,0.0f);
     int frame = 0;
     long numTicks = 0;
+    double delta_time = 0.0;
 
     // Start is called before the first frame update
     void Start()
     {
+        Application.targetFrameRate = 60;
         var cgraphs = mpm88Module.GetAllComputeGrpahs().ToDictionary(x => x.Name);
         if(cgraphs.Count>0)
         {
@@ -48,7 +50,7 @@ public class mpm88 : MonoBehaviour
         _MeshRenderer = GetComponent<MeshRenderer>();
         _MeshRenderer.material.mainTexture = _Texture;
 
-        int n_particles = 8192;//Do not exceed 20000 to ensure smooth running of the demo
+        int n_particles = 2000;//Do not exceed 20000 to ensure smooth running of the demo
 
         //Taichi Allocate memory,hostwrite are not considered
         pos = new NdArrayBuilder<float>().Shape(n_particles).ElemShape(3).HostRead().Build();
@@ -61,6 +63,7 @@ public class mpm88 : MonoBehaviour
         {
             //kernel initialize
         }
+        // Runtime.Submit();
     }
 
     void in_circle_or_not(ref Color[] mpm88_color,ref float[] pos)
@@ -87,14 +90,20 @@ public class mpm88 : MonoBehaviour
     {
         for (int j = 0; j < pos.Length; j += 3)
         {
+
             Vector2 tt = new Vector2((int)(pos[j] * WIDTH),(int)( pos[j + 1] * HEIGHT));
-            mpm88_color[(int)(tt.y*WIDTH+tt.x)] = ParticleColor;
+            var idx = (int)(tt.y*WIDTH+tt.x);
+			idx = 0;
+			// var idx = 0;
+            mpm88_color[idx] = ParticleColor;
         }
     }
 
     // Update is called once per frame
     void Update()
     {
+        frame += 1;
+        if (frame >= 80) return;
         float[] temp2 = new float[pos.Count];
         pos.CopyToArray(temp2);
 
@@ -103,27 +112,27 @@ public class mpm88 : MonoBehaviour
 
         _Texture.SetPixels(_mpm88Color);
         _Texture.Apply();
-
         var sw = new Stopwatch();
         sw.Start();
         if (_Compute_Graph_g_update!=null)
         {
             _Compute_Graph_g_update.LaunchAsync(new Dictionary<string, object>
             {
-                {"x_arr",pos}
+                {"x_arr", pos}
             });
         }
-        sw.Stop();
         Runtime.Submit();
-        frame += 1;
-        if (frame < 20) return;
-        if (frame > 100) return;
-        var fps = 1.0f / Time.deltaTime;
-        long nanosecPerTick = (1000L*1000L*1000L) / Stopwatch.Frequency;
-        numTicks += sw.ElapsedTicks;
-        var nanosec = (numTicks * nanosecPerTick) / (frame-20);
-        var musec = nanosec / 1000;
-        Debug.Log(string.Format("Total {0} mus", musec));
+        sw.Stop();
+        if (frame <= 20) return;
+        if (frame > 80) return;
+        delta_time += Time.deltaTime;
+        
+        var fps = 1.0f / delta_time * (frame -20);
+        // long nanosecPerTick = (1000L*1000L*1000L) / Stopwatch.Frequency;
+        // numTicks += sw.ElapsedTicks;
+        // var nanosec = (numTicks * nanosecPerTick) / (frame-20);
+        // var musec = nanosec / 1000;
+        // Debug.Log(string.Format("Total {0} mus", musec));
         Debug.Log("fps: " + fps.ToString());
     }
 }

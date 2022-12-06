@@ -234,7 +234,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c483a4a461202424a9c440047852f595, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  mpm88Module: {fileID: -8196383504532815311, guid: 81224277c0afc774f92bb95c5da26563, type: 3}
+  mpm88Module: {fileID: -8196383504532815311, guid: be2a826eac3ae42099380f87f321f257, type: 3}
 --- !u!1 &449492370
 GameObject:
   m_ObjectHideFlags: 0
