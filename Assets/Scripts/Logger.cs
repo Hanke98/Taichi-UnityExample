@@ -44,7 +44,7 @@ public class Logger : MonoBehaviour
             style.normal.textColor = Color.red;
 
             //GUI.color = Color.red;
-            GUI.Label(new Rect(200, 200, 1000, 1000), m_ShowLog, style);
+            GUI.Label(new Rect(40, 200, 1000, 1000), m_ShowLog, style);
         }
     }
 }

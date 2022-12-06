@@ -290,8 +290,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c1736a7b3b70f49af9f59a4e13c51ee3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  showFlag: 1
-  logCount: 10
 --- !u!4 &906537095
 Transform:
   m_ObjectHideFlags: 0
@@ -405,7 +403,6 @@ GameObject:
   - component: {fileID: 991498391}
   - component: {fileID: 991498395}
   - component: {fileID: 991498396}
-  - component: {fileID: 991498397}
   m_Layer: 0
   m_Name: Quad
   m_TagString: Untagged
@@ -504,21 +501,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 945d03c7a62c9544dae617637d565539, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  Module: {fileID: -8196383504532815311, guid: f2f8a2a9e413992468db996597fc59ef, type: 3}
---- !u!114 &991498396
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 991498389}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5c0edafab4d03442c94850906d3ea005, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
   Module: {fileID: -8196383504532815311, guid: 5ceab8ddd22a4471b80d0122178b8eae, type: 3}
---- !u!114 &991498397
+--- !u!114 &991498396
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -527,7 +511,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 991498389}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 397f902bdb9b14335901ff1beadd6709, type: 3}
+  m_Script: {fileID: 11500000, guid: d30321688ccd142aab2ebaa048a61607, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  Module: {fileID: -8196383504532815311, guid: 2337288c41540456e8b087dc379e3e73, type: 3}
+  Module: {fileID: -8196383504532815311, guid: 5ceab8ddd22a4471b80d0122178b8eae, type: 3}
