@@ -13,7 +13,7 @@ public class Pbf2d : MonoBehaviour
     const int WIDTH = 800;
     const int HEIGHT = 800;
     private const float screen_to_world_ratio = 10.0f / 80.0f;
-    private const int num_particles = 6000;
+    private const int num_particles = 3000;
 
     public AotModuleAsset Module;
     private ComputeGraph _ComputeGraph_init;
@@ -28,6 +28,7 @@ public class Pbf2d : MonoBehaviour
 
     private long numTicks = 0;
     private int frame = 0;
+	private float total_time = 0.0f;
     
     // Start is called before the first frame update
     void Start()
@@ -62,6 +63,8 @@ public class Pbf2d : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+		// return;
+		if (frame > 100) return;
         var positions_2d = new float[positions.Count];
         positions.CopyToArray(positions_2d);
         for (int i = 0; i < _Pbf2dDataColor.Length; ++i)
@@ -97,9 +100,7 @@ public class Pbf2d : MonoBehaviour
         {
             _ComputeGraph_update.LaunchAsync(new Dictionary<string, object>
             {
-                { "positions_nda", positions},
-                { "board_states", board_states},
-                { "time_delta", time_delta}
+                { "positions_nda", positions}
             });
         }
         sw.Stop();
@@ -107,12 +108,14 @@ public class Pbf2d : MonoBehaviour
         frame += 1;
         if (frame < 20) return; 
         if (frame > 100) return; 
-        var fps = 1.0f / Time.deltaTime;
-        long nanosecPerTick = (1000L*1000L*1000L) / Stopwatch.Frequency;
-        numTicks += sw.ElapsedTicks;
-        var nanosec = (numTicks * nanosecPerTick) / (frame-20);
-        var musec = nanosec / 1000;
-        Debug.Log(string.Format("Total {0} mus", musec));
+        // var fps = 1.0f / Time.deltaTime;
+		total_time += Time.deltaTime;
+        var fps = 1.0f / total_time * (frame -20);
+        // long nanosecPerTick = (1000L*1000L*1000L) / Stopwatch.Frequency;
+        // numTicks += sw.ElapsedTicks;
+        // var nanosec = (numTicks * nanosecPerTick) / (frame-20);
+        // var musec = nanosec / 1000;
+        // Debug.Log(string.Format("Total {0} mus", musec));
         Debug.Log("fps: " + fps.ToString());
     }
 }
