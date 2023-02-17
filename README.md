@@ -1,3 +1,16 @@
+# Taichi 移动端测试
+
+利用Taichi AOT模式进行移动端性能测试；
+在Android端运行测试程序需要：
+1. 从内部Taichi仓库的`impl-quant-spirv`分支编译taichi编译器;
+2. 从内部taichi-unity2仓库的`add-android-build`仓库编译`taichi-unity.so`和`taichi_c_api.so`；
+3. 按照下面的说明，把`taichi-unity.so`和`taichi_c_api.so`放到`Assets/Plugins/Android`目录下；
+4. 重新运行`scripts/`目录下的mpm.quant.py脚本，生成aot module.
+
+   ```python scripts/mpm.quant.py --aot -q，其中`-q`参数表示是否开启量化；```
+5. 在Unity中编译打包；
+
+--- 
 # Taichi-UnityExample
 
 This repository demonstrates Taichi-Unity interopability with sample scenes.
