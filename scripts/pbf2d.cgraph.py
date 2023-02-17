@@ -34,7 +34,7 @@ bg_color = 0x112f41
 particle_color = 0x068587
 boundary_color = 0xebaca2
 num_particles_x = 100
-num_particles = num_particles_x * 60
+num_particles = num_particles_x * 30
 # num_particles = num_particles_x 
 max_num_particles_per_cell = 100
 max_num_neighbors = 100
@@ -48,7 +48,7 @@ h_ = 1.1 * factor
 mass = 1.0 * (factor**3)
 rho0 = 1.0
 lambda_epsilon = 100.0
-pbf_num_iters = 20
+pbf_num_iters = 1
 corr_deltaQ_coeff = 0.3
 corrK = 0.001
 # Need ti.pow()
@@ -65,7 +65,6 @@ grid2particles = ti.field(int)
 particle_num_neighbors = ti.field(int)
 particle_neighbors = ti.field(int)
 lambdas = ti.field(float)
-position_deltas = ti.Vector.field(dim, float)
 # 0: x-pos, 1: timestep in sin()
 board_states = ti.Vector.ndarray(2, dtype=ti.f32, shape=())
 
@@ -75,25 +74,40 @@ quant = args.quant
 
 if quant:
     qfxt = ti.types.quant.fixed(bits=16, max_value=1)
+    qfxt2 = ti.types.quant.fixed(bits=16, max_value=8)
+    qfxt3 = ti.types.quant.fixed(bits=16, max_value=0.3)
 
     old_positions = ti.Vector.field(dim, qfxt)
-    positions = ti.Vector.field(dim, dtype=qfxt)
-    velocities = ti.Vector.field(dim, real)
+    positions = ti.Vector.field(dim, dtype=real)
+    velocities = ti.Vector.field(dim, dtype=qfxt2)
 
+    position_deltas = ti.Vector.field(dim, qfxt3)
+    
     bitpack = ti.BitpackedFields(max_num_bits=32)
     bitpack2 = ti.BitpackedFields(max_num_bits=32)
+    bitpack3 = ti.BitpackedFields(max_num_bits=32)
+    bitpack4 = ti.BitpackedFields(max_num_bits=32)
+
     bitpack.place(old_positions.get_scalar_field(0), old_positions.get_scalar_field(1))
-    bitpack2.place(positions.get_scalar_field(0), positions.get_scalar_field(1))
-    # bitpack.place(velocities.get_scalar_field(0), velocities.get_scalar_field(1))
+    # bitpack2.place(positions.get_scalar_field(0), positions.get_scalar_field(1))
+    bitpack3.place(velocities.get_scalar_field(0), velocities.get_scalar_field(1))
+    bitpack4.place(position_deltas.get_scalar_field(0), position_deltas.get_scalar_field(1))
+    
     ti.root.dense(ti.i, num_particles).place(bitpack)
-    ti.root.dense(ti.i, num_particles).place(bitpack2)
-    ti.root.dense(ti.i, num_particles).place(velocities)
+    # ti.root.dense(ti.i, num_particles).place(bitpack2)
+    ti.root.dense(ti.i, num_particles).place(bitpack3)
+    ti.root.dense(ti.i, num_particles).place(lambdas, bitpack4)
+    # ti.root.dense(ti.i, num_particles).place(lambdas, position_deltas)
+    # ti.root.dense(ti.i, num_particles).place(velocities)
+    ti.root.dense(ti.i, num_particles).place(positions)
     # ti.root.dense(ti.i, num_particles).place(old_positions)
 else:
     old_positions = ti.Vector.field(dim, float)
+    position_deltas = ti.Vector.field(dim, float)
     velocities = ti.Vector.field(dim, float)
     positions = ti.Vector.field(dim, dtype=ti.f32, shape=num_particles)
     ti.root.dense(ti.i, num_particles).place(old_positions, velocities)
+    ti.root.dense(ti.i, num_particles).place(lambdas, position_deltas)
 
 grid_snode = ti.root.dense(ti.ij, grid_size)
 grid_snode.place(grid_num_particles)
@@ -102,7 +116,6 @@ grid_snode.dense(ti.k, max_num_particles_per_cell).place(grid2particles)
 nb_node = ti.root.dense(ti.i, num_particles)
 nb_node.place(particle_num_neighbors)
 nb_node.dense(ti.j, max_num_neighbors).place(particle_neighbors)
-ti.root.dense(ti.i, num_particles).place(lambdas, position_deltas)
 
 
 @ti.func
@@ -149,7 +162,7 @@ def is_in_grid(c):
 
 
 @ti.func
-def confine_position_to_boundary(p, board_states: ti.types.ndarray(field_dim=0)):
+def confine_position_to_boundary(p):
     bmin = particle_radius_in_world * 3 
     bmax = (boundary[0] - bmin, boundary[1] - bmin)
     # bmax = ti.Vector([board_states[None][0], boundary[1]
@@ -164,7 +177,7 @@ def confine_position_to_boundary(p, board_states: ti.types.ndarray(field_dim=0))
 
 
 @ti.kernel
-def move_board(board_states: ti.types.ndarray(field_dim=0),time_delta:ti.f32):
+def move_board(board_states: ti.types.ndarray(field_dim=0)):
     # probably more accurate to exert force on particles according to hooke's law.
     # b = board_states[None]
     # b[1] += 1.0
@@ -180,14 +193,15 @@ def move_board(board_states: ti.types.ndarray(field_dim=0),time_delta:ti.f32):
 
 @ti.kernel
 def pass_positions(positions_nda: ti.types.ndarray(field_dim=1)):
-    for i in positions:
+    # for i in positions:
+    for i in range(num_particles):
         positions[i] = positions_nda[i]
 
 
 @ti.kernel
-def prologue(board_states: ti.types.ndarray(field_dim=0), time_delta:ti.f32):
+def prologue():
     # save old positions
-    for i in positions:
+    for i in range(num_particles):
         old_positions[i] = positions[i]
     # apply gravity within boundary
     for i in positions:
@@ -195,7 +209,7 @@ def prologue(board_states: ti.types.ndarray(field_dim=0), time_delta:ti.f32):
         pos, vel = positions[i], velocities[i]
         vel += g * time_delta
         pos += vel * time_delta
-        positions[i] = confine_position_to_boundary(pos, board_states)
+        positions[i] = confine_position_to_boundary(pos)
 
     # clear neighbor lookup table
     for I in ti.grouped(grid_num_particles):
@@ -204,7 +218,7 @@ def prologue(board_states: ti.types.ndarray(field_dim=0), time_delta:ti.f32):
         particle_neighbors[I] = -1
 
     # update grid
-    for p_i in positions:
+    for p_i in range(num_particles):
         cell = get_cell(positions[p_i])
         # ti.Vector doesn't seem to support unpacking yet
         # but we can directly use int Vectors as indices
@@ -212,7 +226,8 @@ def prologue(board_states: ti.types.ndarray(field_dim=0), time_delta:ti.f32):
         grid2particles[cell, offs] = p_i
 
     # find particle neighbors
-    for p_i in positions:
+    # for p_i in positions:
+    for p_i in range(num_particles):
         pos_i = positions[p_i]
         cell = get_cell(pos_i)
         nb_i = 0
@@ -232,71 +247,75 @@ def prologue(board_states: ti.types.ndarray(field_dim=0), time_delta:ti.f32):
 def substep():
     # compute lambdas
     # Eq (8) ~ (11)
-    for p_i in positions:
-        pos_i = positions[p_i]
+    # for p_i in range(num_particles): 
+    #     pos_i = positions[p_i]
 
-        grad_i = ti.Vector([0.0, 0.0])
-        sum_gradient_sqr = 0.0
-        density_constraint = 0.0
+    #     grad_i = ti.Vector([0.0, 0.0])
+    #     sum_gradient_sqr = 0.0
+    #     density_constraint = 0.0
 
-        for j in range(particle_num_neighbors[p_i]):
-            p_j = particle_neighbors[p_i, j]
-            if p_j < 0:
-                break
-            pos_ji = pos_i - positions[p_j]
-            grad_j = spiky_gradient(pos_ji, h_)
-            grad_i += grad_j
-            sum_gradient_sqr += grad_j.dot(grad_j)
-            # Eq(2)
-            density_constraint += poly6_value(pos_ji.norm(), h_)
+    #     for j in range(particle_num_neighbors[p_i]):
+    #         p_j = particle_neighbors[p_i, j]
+    #         if p_j < 0:
+    #             break
+    #         pos_ji = pos_i - positions[p_j]
+    #         grad_j = spiky_gradient(pos_ji, h_)
+    #         grad_i += grad_j
+    #         sum_gradient_sqr += grad_j.dot(grad_j)
+    #         # Eq(2)
+    #         density_constraint += poly6_value(pos_ji.norm(), h_)
 
-        # Eq(1)
-        density_constraint = (mass * density_constraint / rho0) - 1.0
+    #     # Eq(1)
+    #     density_constraint = (mass * density_constraint / rho0) - 1.0
 
-        sum_gradient_sqr += grad_i.dot(grad_i)
-        lambdas[p_i] = (-density_constraint) / (sum_gradient_sqr +
-                                                lambda_epsilon)
+    #     sum_gradient_sqr += grad_i.dot(grad_i)
+    #     lambdas[p_i] = (-density_constraint) / (sum_gradient_sqr +
+    #                                             lambda_epsilon)
     # compute position deltas
     # Eq(12), (14)
-    for p_i in positions:
-        pos_i = positions[p_i]
-        lambda_i = lambdas[p_i]
+   #  for p_i in range(num_particles):
+   #      pos_i = positions[p_i]
+   #      lambda_i = lambdas[p_i]
 
-        pos_delta_i = ti.Vector([0.0, 0.0])
-        for j in range(particle_num_neighbors[p_i]):
-            p_j = particle_neighbors[p_i, j]
-            if p_j < 0:
-                break
-            lambda_j = lambdas[p_j]
-            pos_ji = pos_i - positions[p_j]
-            scorr_ij = compute_scorr(pos_ji)
-            pos_delta_i += (lambda_i + lambda_j + scorr_ij) * \
-                           spiky_gradient(pos_ji, h_)
+   #      pos_delta_i = ti.Vector([0.0, 0.0])
+   #      for j in range(particle_num_neighbors[p_i]):
+   #          p_j = particle_neighbors[p_i, j]
+   #          if p_j < 0:
+   #              break
+   #          lambda_j = lambdas[p_j]
+   #          pos_ji = pos_i - positions[p_j]
+   #          scorr_ij = compute_scorr(pos_ji)
+   #          pos_delta_i += (lambda_i + lambda_j + scorr_ij) * \
+   #                         spiky_gradient(pos_ji, h_)
 
-        pos_delta_i /= rho0
-        position_deltas[p_i] = pos_delta_i * factor
-   # apply position deltas
+   #      pos_delta_i /= rho0
+   #      position_deltas[p_i] = pos_delta_i * factor
+   # # apply position deltas
     for i in range(num_particles):
         for k in ti.static(range(dim)):
-            positions[i][k] += position_deltas[i][k]
+            positions[i][k] = 0.0
         # for k in ti.static(range(dim)):
-            # positions[i][k] += 0.00008 
+        # positions[i] = positions[i] + position_deltas[i]
+   #      # for k in ti.static(range(dim)):
+        #     positions[i][k] = positions[i][k] + 0.00008 
 
 
 @ti.kernel
 def get_position(positions_nda: ti.types.ndarray(field_dim=1)):
-    for i in positions:
+    for i in range(num_particles):
         positions_nda[i] = positions[i]
 
 
 @ti.kernel
-def epilogue(board_states: ti.types.ndarray(field_dim=0), time_delta:ti.f32):
+def epilogue():
     # confine to boundary
-    for i in positions:
+    # for i in positions:
+    for i in range(num_particles):
         pos = positions[i]
-        positions[i] = confine_position_to_boundary(pos, board_states)
+        positions[i] = confine_position_to_boundary(pos)
     # update velocities
-    for i in positions:
+    # for i in positions:
+    for i in range(num_particles):
         velocities[i] = (positions[i] - old_positions[i]) / time_delta
     # no vorticity/xsph because we cannot do cross product in 2D...
 
@@ -321,7 +340,7 @@ def render(gui):
 
 
 @ti.kernel
-def init_particles(board_states: ti.types.ndarray(field_dim=0)):
+def init_particles():
     for i in range(num_particles):
         delta = h_ * 0.6
         offs = ti.Vector([(boundary[0] - delta * num_particles_x) * 0.5,
@@ -331,7 +350,7 @@ def init_particles(board_states: ti.types.ndarray(field_dim=0)):
         for c in ti.static(range(dim)):
             velocities[i][c] = 0
             # velocities[i][c] = (ti.random() - 0.5) * 4 * factor
-    board_states[None] = ti.Vector([boundary[0] - epsilon, -0.0])
+    # board_states[None] = ti.Vector([boundary[0] - epsilon, -0.0])
 
 
 def print_stats():
@@ -348,18 +367,17 @@ def compile_aot():
     # Init graph
     g_init_builder = ti.graph.GraphBuilder()
     sym_positions_nda = ti.graph.Arg(ti.graph.ArgKind.NDARRAY, 'positions_nda', ti.f32, field_dim=1, element_shape=(2,))
-    sym_board_states = ti.graph.Arg(ti.graph.ArgKind.NDARRAY, 'board_states', ti.f32, field_dim=0, element_shape=(2,))
-    g_init_builder.dispatch(init_particles, sym_board_states)
+    # sym_board_states = ti.graph.Arg(ti.graph.ArgKind.NDARRAY, 'board_states', ti.f32, field_dim=0, element_shape=(2,))
+    g_init_builder.dispatch(init_particles)
     g_init = g_init_builder.compile()
 
     # Update graph
     g_update_builder = ti.graph.GraphBuilder()
-    sym_time_delta=ti.graph.Arg(ti.graph.ArgKind.SCALAR, "time_delta", ti.f32, element_shape=())
-    g_update_builder.dispatch(move_board, sym_board_states, sym_time_delta)
-    g_update_builder.dispatch(prologue, sym_board_states, sym_time_delta)
+    g_update_builder.dispatch(prologue)
+    # g_update_builder.dispatch(substep)
     for _ in range(pbf_num_iters):
         g_update_builder.dispatch(substep)
-    g_update_builder.dispatch(epilogue, sym_board_states, sym_time_delta)
+    g_update_builder.dispatch(epilogue)
     g_update_builder.dispatch(get_position, sym_positions_nda)
     g_update = g_update_builder.compile()
 
@@ -378,16 +396,14 @@ def store_aot(graphs):
 def run_ggui(graphs):
     global total_time
     # Initialize
-    graphs[0].run({'board_states': board_states})
+    graphs[0].run({})
 
     # Update
     gui = ti.GUI('PBF2D', screen_res)
     frame = 0
     while gui.running and not gui.get_event(gui.ESCAPE):
         st = time.time()
-        graphs[1].run({'positions_nda': positions_nda, 
-                       'board_states': board_states, 
-                       "time_delta": time_delta})
+        graphs[1].run({'positions_nda': positions_nda}) 
         end = time.time()
         #     if gui.frame % 20 == 1:
         #         print_stats()

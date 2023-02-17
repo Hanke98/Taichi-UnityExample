@@ -90,11 +90,10 @@ public class mpm88 : MonoBehaviour
     {
         for (int j = 0; j < pos.Length; j += 3)
         {
-
-            Vector2 tt = new Vector2((int)(pos[j] * WIDTH),(int)( pos[j + 1] * HEIGHT));
+            Vector2 tt = new Vector2((int)(pos[j] * WIDTH),(int)(pos[j + 1] * HEIGHT));
             var idx = (int)(tt.y*WIDTH+tt.x);
-			idx = 0;
-			// var idx = 0;
+            if (idx > 240*240) idx = 0;
+            if (idx < 0) idx = 0;
             mpm88_color[idx] = ParticleColor;
         }
     }
@@ -103,7 +102,7 @@ public class mpm88 : MonoBehaviour
     void Update()
     {
         frame += 1;
-        if (frame >= 80) return;
+        if (frame >= 70) return;
         float[] temp2 = new float[pos.Count];
         pos.CopyToArray(temp2);
 
@@ -124,7 +123,7 @@ public class mpm88 : MonoBehaviour
         Runtime.Submit();
         sw.Stop();
         if (frame <= 20) return;
-        if (frame > 80) return;
+        if (frame > 70) return;
         delta_time += Time.deltaTime;
         
         var fps = 1.0f / delta_time * (frame -20);
